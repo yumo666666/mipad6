@@ -1,0 +1,49 @@
+﻿#!/bin/sh
+# /usr/local/sbin/liuqin-speaker-swap on|off|status
+# Swap the left/right channel assignment of the four CS35L41 amps.
+set -eu
+CONF=/etc/liuqin-speaker-swap
+A=${1:-status}
+
+apply() {
+    case "$1" in
+        off)
+            amixer -c 0 -q sset 'TL DSP RX1 Source' ASPRX1
+            amixer -c 0 -q sset 'TL DSP RX2 Source' ASPRX2
+            amixer -c 0 -q sset 'TR DSP RX1 Source' ASPRX2
+            amixer -c 0 -q sset 'TR DSP RX2 Source' ASPRX1
+            amixer -c 0 -q sset 'BL DSP RX1 Source' ASPRX1
+            amixer -c 0 -q sset 'BL DSP RX2 Source' ASPRX2
+            amixer -c 0 -q sset 'BR DSP RX1 Source' ASPRX2
+            amixer -c 0 -q sset 'BR DSP RX2 Source' ASPRX1
+            ;;
+        on)
+            amixer -c 0 -q sset 'TL DSP RX1 Source' ASPRX2
+            amixer -c 0 -q sset 'TL DSP RX2 Source' ASPRX1
+            amixer -c 0 -q sset 'TR DSP RX1 Source' ASPRX1
+            amixer -c 0 -q sset 'TR DSP RX2 Source' ASPRX2
+            amixer -c 0 -q sset 'BL DSP RX1 Source' ASPRX2
+            amixer -c 0 -q sset 'BL DSP RX2 Source' ASPRX1
+            amixer -c 0 -q sset 'BR DSP RX1 Source' ASPRX1
+            amixer -c 0 -q sset 'BR DSP RX2 Source' ASPRX2
+            ;;
+        *) echo 'usage: liuqin-speaker-swap on|off|status' >&2; exit 2 ;;
+    esac
+}
+
+case "$A" in
+    on|off)
+        apply "$A"
+        printf '%s\n' "$A" > "$CONF"
+        echo "speaker L/R swap: $A"
+        ;;
+    status)
+        printf 'configured: %s\n' "$(cat "$CONF" 2>/dev/null || echo off)"
+        for n in TL TR BL BR; do
+            printf '%s: RX1=%s RX2=%s\n' "$n" \
+                "$(amixer -c 0 sget "$n DSP RX1 Source" 2>/dev/null | grep -o "Item0: '.*'" | tr -d "'" | cut -d: -f2 | tr -d ' ')" \
+                "$(amixer -c 0 sget "$n DSP RX2 Source" 2>/dev/null | grep -o "Item0: '.*'" | tr -d "'" | cut -d: -f2 | tr -d ' ')"
+        done
+        ;;
+    *) echo 'usage: liuqin-speaker-swap on|off|status' >&2; exit 2 ;;
+esac
